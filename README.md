@@ -14,8 +14,11 @@ To demo rendering patterns, we need to build and run on production mode.
 
 `pnpm build && pnpm start`
 
+### 3. Start Directus from docker and Access web app and CMS
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- Open CMS at: [http://localhost:8055](http://localhost:8055)
+
+- Open web app at: [http://localhost:3000](http://localhost:3000)
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
