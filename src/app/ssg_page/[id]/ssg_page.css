@@ -1,0 +1,109 @@
+/* SSG Page Styles */
+.ssg-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 2rem;
+    font-family: Arial, sans-serif;
+}
+
+.ssg-breadcrumb {
+    margin-bottom: 2rem;
+}
+
+.ssg-breadcrumb a {
+    color: #2563eb;
+    text-decoration: none;
+    font-size: 0.9rem;
+}
+
+.ssg-breadcrumb a:hover {
+    text-decoration: underline;
+}
+
+.ssg-page-content h1 {
+    color: #333;
+    margin-bottom: 1rem;
+    border-bottom: 2px solid #e5e7eb;
+    padding-bottom: 0.5rem;
+}
+
+.ssg-page-meta {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    font-size: 0.9rem;
+    color: #666;
+}
+
+.ssg-status {
+    background: #10b981;
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+}
+
+.ssg-date {
+    color: #666;
+}
+
+.ssg-sections h2 {
+    color: #374151;
+    margin-bottom: 1.5rem;
+}
+
+.ssg-sections-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.ssg-section-card {
+    border: 1px solid #10b981;
+    border-radius: 8px;
+    padding: 1.5rem;
+    background: #f0fdf4;
+}
+
+.ssg-section-card h3 {
+    margin: 0 0 1rem 0;
+    color: #059669;
+    font-size: 1.1rem;
+}
+
+.ssg-section-radio {
+    margin-bottom: 1rem;
+    padding: 0.75rem;
+    background: #ecfdf5;
+    border: 1px solid #a7f3d0;
+    border-radius: 6px;
+}
+
+.ssg-section-radio h4 {
+    margin: 0 0 0.5rem 0;
+    font-size: 0.9rem;
+    color: #047857;
+    font-weight: 600;
+}
+
+.ssg-radio-tag {
+    background: #10b981;
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.ssg-section-meta {
+    color: #666;
+    font-size: 0.8rem;
+    border-top: 1px solid #a7f3d0;
+    padding-top: 0.5rem;
+}
+
+.ssg-error {
+    text-align: center;
+    padding: 2rem;
+    font-size: 1.1rem;
+    color: #dc2626;
+}

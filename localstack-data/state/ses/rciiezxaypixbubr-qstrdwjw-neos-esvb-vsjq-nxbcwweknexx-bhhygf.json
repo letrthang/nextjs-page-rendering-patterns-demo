@@ -1,0 +1,1 @@
+{"Id": "rciiezxaypixbubr-qstrdwjw-neos-esvb-vsjq-nxbcwweknexx-bhhygf", "Region": "us-east-1", "Destination": {"ToAddresses": ["recipient@example.com"]}, "Source": "sender@example.com", "Subject": "Test Email", "Body": {"text_part": null, "html_part": "<h1>Helloat Thu 18 Dec 2025 11:33:35  08</p>"}, "Timestamp": "2025-12-18T03:33:35"}

@@ -1,0 +1,1 @@
+{"Id": "gfkedbybeqnlgvcl-sfjitsxn-ngzg-msro-odfa-mnjwgllyxcit-cutkuh", "Region": "us-east-1", "Destination": {"ToAddresses": ["recipient@example.com"]}, "Source": "sender@example.com", "Subject": "Test Email", "Body": {"text_part": "Hello from curl", "html_part": null}, "Timestamp": "2025-12-18T03:29:06"}

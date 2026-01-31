@@ -1,0 +1,112 @@
+/* SSR Page Styles */
+.ssr-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 2rem;
+    font-family: Arial, sans-serif;
+}
+
+.ssr-breadcrumb {
+    margin-bottom: 2rem;
+}
+
+.ssr-breadcrumb a {
+    color: #2563eb;
+    text-decoration: none;
+    font-size: 0.9rem;
+}
+
+.ssr-breadcrumb a:hover {
+    text-decoration: underline;
+}
+
+.ssr-page-content h1 {
+    color: #333;
+    margin-bottom: 1rem;
+    border-bottom: 2px solid #e5e7eb;
+    padding-bottom: 0.5rem;
+}
+
+.ssr-page-meta {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    font-size: 0.9rem;
+    color: #666;
+}
+
+.ssr-status {
+    background: #f59e0b;
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+}
+
+.ssr-date {
+    color: #666;
+}
+
+.ssr-sections h2 {
+    color: #374151;
+    margin-bottom: 1.5rem;
+}
+
+.ssr-sections-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.ssr-section-card {
+    border: 1px solid #f59e0b;
+    border-radius: 8px;
+    padding: 1.5rem;
+    background: #fffbeb;
+}
+
+.ssr-section-card h3 {
+    margin: 0 0 1rem 0;
+    color: #d97706;
+    font-size: 1.1rem;
+}
+
+.ssr-section-editor {
+    margin-bottom: 1rem;
+    padding: 0.75rem;
+    background: #fef3c7;
+    border: 1px solid #fbbf24;
+    border-radius: 6px;
+}
+
+.ssr-section-editor h4 {
+    margin: 0 0 0.5rem 0;
+    font-size: 0.9rem;
+    color: #92400e;
+    font-weight: 600;
+}
+
+.ssr-editor-content {
+    background: white;
+    padding: 0.75rem;
+    border-radius: 4px;
+    border: 1px solid #fbbf24;
+}
+
+.ssr-editor-block {
+    margin-bottom: 0.5rem;
+    line-height: 1.5;
+}
+
+.ssr-section-meta {
+    color: #666;
+    font-size: 0.8rem;
+    border-top: 1px solid #fbbf24;
+    padding-top: 0.5rem;
+}
+
+.ssr-error {
+    text-align: center;
+    padding: 2rem;
+    font-size: 1.1rem;
+    color: #dc2626;
+}

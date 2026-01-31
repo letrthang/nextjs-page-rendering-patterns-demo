@@ -1,0 +1,66 @@
+# docker-compose.yml
+version: "3.8"
+services:
+  directus:
+    image: directus/directus:11.11.0
+    container_name: directus
+    ports:
+      - 8055:8055
+    volumes:
+      - ./database:/directus/database
+      - ./uploads:/directus/uploads
+      - ./extensions:/directus/extensions
+    environment:
+      KEY: "123456789123456789"
+      SECRET: "123456789123456789123456789123456789"
+      ADMIN_EMAIL: "admin@example.com"
+      ADMIN_PASSWORD: "P@ssw0rd"
+      DB_CLIENT: "sqlite3"
+      DB_FILENAME: "/directus/database/data.db"
+      WEBSOCKETS_ENABLED: "true"
+      EMAIL_FROM: "noreply@yourdomain.com"
+      EMAIL_TRANSPORT: "smtp"
+      EMAIL_SMTP_HOST: "mailpit"
+      EMAIL_SMTP_PORT: "1025"
+      EMAIL_SMTP_SECURE: "false"
+      EMAIL_SMTP_IGNORE_TLS: "true"
+    networks:
+      - directus-network
+    depends_on:
+      - mailpit
+
+  localstack:
+    container_name: localstack
+    image: localstack/localstack:latest
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=ses
+      - DEBUG=1
+      - PERSISTENCE=1
+      # Try these settings for SMTP forwarding
+      - SMTP_HOST=mailpit:1025
+      - SMTP_EMAIL_ADDRESS=sender@example.com # Optional: force a sender
+    volumes:
+      - ./localstack-data:/var/lib/localstack
+    networks:
+      - directus-network
+    depends_on:
+      - mailpit
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: mailpit
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    environment:
+      - MP_SMTP_AUTH_ACCEPT_ANY=1
+      - MP_SMTP_AUTH_ALLOW_INSECURE=1
+      - MP_MAX_MESSAGES=500
+    networks:
+      - directus-network
+
+networks:
+  directus-network:
+    driver: bridge

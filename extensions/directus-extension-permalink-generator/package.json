@@ -1,0 +1,46 @@
+{
+  "name": "directus-extension-permalink-generator",
+  "version": "1.0.2",
+  "description": "Auto-generate hierarchical permalinks for pages in Directus based on parent-child relationships",
+  "keywords": [
+    "directus-extension",
+    "directus-custom-interface",
+    "directus-extension-interface",
+    "permalink",
+    "slug",
+    "url-generator",
+    "seo",
+    "cms",
+    "content-management"
+  ],
+  "type": "module",
+  "author": {
+    "name": "Thang Le",
+    "email": "ThangLT20@fpt.com"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/letrthang/directus-cms-permalink-generator.git"
+  },
+  "bugs": {
+    "url": "https://github.com/letrthang/directus-cms-permalink-generator/issues"
+  },
+  "homepage": "https://github.com/letrthang/directus-cms-permalink-generator#readme",
+  "directus:extension": {
+    "type": "interface",
+    "path": "dist/index.js",
+    "source": "src/index.ts",
+    "host": "^11.0.0"
+  },
+  "scripts": {
+    "build": "directus-extension build",
+    "dev": "directus-extension build -w --no-minify"
+  },
+  "devDependencies": {
+    "@directus/extensions-sdk": "11.0.0",
+    "@directus/types": "^11.2.1",
+    "typescript": "^5.9.3",
+    "vue": "^3.5.22"
+  }
+}
