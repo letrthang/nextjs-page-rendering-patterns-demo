@@ -1,0 +1,1 @@
+# nextjs-page-rendering-patterns-demo
