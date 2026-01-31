@@ -1,17 +1,19 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app). to work with https://directus.io as a backend data service
 
+## To demo rendering patterns: SSG, ISR, SSR, CSR and memory profiling.
+
 ## Getting Started
 
-First, run the development server:
+To demo rendering patterns, we need to build and run on production mode.
 
-```bash
+### 1. Install packages
 
- npm run dev
- 
-# or
+`pnpm install`
 
- pnpm dev
-```
+### 2. Build and Run on production mode
+
+`pnpm build && pnpm start`
+
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
