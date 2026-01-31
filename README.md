@@ -55,8 +55,9 @@ You could see the home page as below:
 
 ### Rendering Patterns Matrix
 
-
 ![Alt text](./doc/rendering_patterns_matrix.png)
+
+### SSG - Static Site Generation
 
 ## Memory Profiling
 
