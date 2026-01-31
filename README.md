@@ -15,15 +15,19 @@ Beyond rendering, this project includes a detailed guide on **Memory Profiling**
 
 To demo rendering patterns, we need to build and run on production mode.
 
-### 1. Install packages
+### 1. Setup Web app ENV variable
+
+Update file **.env** with the token you created on Directus CMS.
+
+### 2. Install packages
 
 `pnpm install`
 
-### 2. Build and Run on production mode
+### 3. Build and Run on production mode
 
 `pnpm build && pnpm start`
 
-### 3. Start Directus CMS docker and Access web app and CMS
+### 4. Start Directus CMS docker and Access web app and CMS
 
 - Open CMS at: [http://localhost:8055](http://localhost:8055)
 
