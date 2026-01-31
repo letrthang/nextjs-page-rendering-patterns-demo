@@ -1,6 +1,15 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app). to work with https://directus.io as a backend data service
+This is a comprehensive [Next.js](https://nextjs.org) demonstration project designed to explore modern web rendering strategies and performance monitoring. It integrates with [Directus](https://directus.io) as a headless CMS to provide real-world data fetching scenarios.
 
-## To demo rendering patterns: SSG, ISR, SSR, CSR and memory profiling.
+### 🚀 Core Objectives: Rendering Patterns & Memory Profiling
+
+The primary goal of this project is to visualize and compare the lifecycle of different Next.js rendering patterns. It provides hands-on examples to understand:
+
+- **SSG (Static Site Generation):** Pre-rendering pages at build time for maximum speed and SEO.
+- **ISR (Incremental Static Regeneration):** Updating static content after deployment without a full rebuild.
+- **SSR (Server-Side Rendering):** Generating HTML on-demand for each request to ensure data is always fresh.
+- **CSR (Client-Side Rendering):** Handling data fetching and UI updates directly in the browser.
+
+Beyond rendering, this project includes a detailed guide on **Memory Profiling**, allowing developers to track heap allocations and identify potential memory leaks in a Node.js environment.
 
 ## Getting Started
 
@@ -14,7 +23,7 @@ To demo rendering patterns, we need to build and run on production mode.
 
 `pnpm build && pnpm start`
 
-### 3. Start Directus from docker and Access web app and CMS
+### 3. Start Directus CMS docker and Access web app and CMS
 
 - Open CMS at: [http://localhost:8055](http://localhost:8055)
 
@@ -39,6 +48,11 @@ You could see the home page as below:
 
 
 ![Alt text](./doc/demo.png)
+
+### Rendering Patterns Matrix
+
+
+![Alt text](./doc/rendering_patterns_matrix.png)
 
 ## Memory Profiling
 
