@@ -24,9 +24,13 @@ To demo rendering patterns, we need to build and run on production mode.
 
 `pnpm install`
 
-### 3. Build and Run on production mode
+### 3. Build and Run on production mode (we build with standalone mode)
 
 `pnpm build && pnpm start`
+
+Or
+
+`node .next/standalone/server.js`
 
 ### 4. Start Directus CMS docker and Access web app and CMS
 
@@ -59,6 +63,141 @@ You could see the home page as below:
 ![Alt text](./doc/rendering_patterns_matrix.png)
 
 ### SSG - Static Site Generation
+
+**Source:** `src/app/ssg_page/[id]/page.tsx`
+
+**Method:** Uses `generateStaticParams` to pre-render pages at build time
+
+**Pre-rendered pages are stored at:**
+- `.next/server/app/ssg_page/` (standard build - used by `pnpm start`)
+- `.next/standalone/.next/server/app/ssg_page/` (standalone build - used by `node .next/standalone/server.js`)
+
+**Generated files per page:**
+- `{id}.html` - Pre-rendered HTML content
+- `{id}.rsc` - React Server Component payload
+- `{id}.meta` - Metadata and configuration
+- `{id}.segments/` - Code splitting segments
+
+**Data fetching:** Direct call to Directus API at build time (server-side only)
+
+#### Understanding Next.js Static Chunks and CDN Caching
+
+**Static chunks location:**
+```
+.next/static/chunks/
+├── ff1a16fafef87110.js  ← Code-split JavaScript bundle
+├── a6dad97d9634a72d.js  ← Shared libraries chunk
+└── ...
+```
+
+**How chunks are loaded:**
+
+![Alt text](./doc/static_hash_chunk.png)
+![Alt text](./doc/static_hash_chunk_data.png)
+
+1. HTML/RSC files reference chunks: `<script src="/_next/static/chunks/ff1a16fafef87110.js"></script>`
+2. Browser downloads chunks from `.next/static/chunks/`
+3. Hash-based filename (e.g., `ff1a16fafef87110`) = content fingerprint
+   - Same code → same hash → effective caching
+   - Changed code → new hash → new filename
+
+**CDN caching strategy:**
+- Static chunks use: `Cache-Control: public, max-age=31536000, immutable`
+- Cached for 1 year with no revalidation (hash changes = new file)
+
+**Common deployment issue: Missing old hash files**
+
+**Problem:**
+```
+Deployment 1: .next/static/chunks/abc123.js (user's browser cached this)
+Deployment 2: .next/static/chunks/xyz789.js (new build DELETES abc123.js)
+Result: User gets 404 error trying to load abc123.js ❌
+```
+
+**Solutions:**
+
+#### Solution 1: Clear ALL CDN cache after deployment (Simplest for ephemeral pods)
+
+**When to use:** Kubernetes/Docker deployments with ephemeral storage and CDN (CloudFront, Cloudflare, etc.)
+
+**Why this works:**
+- After deployment, new pod only has new chunks (xyz789.js)
+- Old chunks (abc123.js) are gone from pod
+- Clearing ALL CDN cache forces fresh fetch of both HTML and chunks
+- No mismatch between cached HTML and available chunks
+
+**Implementation:**
+```bash
+# GitLab CI/CD pipeline (.gitlab-ci.yml)
+after_deploy:
+  - |
+    # Clear entire CloudFront/CDN cache
+    aws cloudfront create-invalidation \
+      --distribution-id $CLOUDFRONT_ID \
+      --paths "/*"
+
+    # OR for Cloudflare
+    curl -X POST "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/purge_cache" \
+      -H "Authorization: Bearer $CF_TOKEN" \
+      -d '{"purge_everything":true}'
+```
+
+**Trade-offs:**
+- ✅ Simple, no infrastructure changes needed
+- ✅ Guarantees no 404 errors from mismatched chunks
+- ✅ Works with ephemeral pod storage
+- ⚠️ First request after deployment is slower (cache miss)
+- ⚠️ Temporarily higher load on origin pods
+
+**Cache strategy with this approach:**
+```typescript
+// next.config.ts - Keep your desired cache times
+async headers() {
+  return [
+    {
+      source: '/:path*',
+      headers: [{
+        key: 'Cache-Control',
+        value: 's-maxage=1800, stale-while-revalidate=600', // 30min cache
+      }],
+    },
+    {
+      source: '/_next/static/:path*',
+      headers: [{
+        key: 'Cache-Control',
+        value: 'public, max-age=31536000, immutable', // 1 year cache
+      }],
+    },
+  ];
+}
+```
+
+---
+
+#### Solution 2: Don't invalidate static chunks (Recommended for persistent storage)
+
+**When to use:** When you can preserve old static files across deployments
+
+**Why this works:**
+- Static chunks use hash-based filenames (abc123.js vs xyz789.js)
+- New deployment = new hash = new filename
+- Old chunks can stay cached forever because new HTML references new chunks
+- Only invalidate HTML/pages, not `/_next/static/*`
+
+**Implementation:**
+```bash
+# GitLab CI/CD - Only invalidate HTML, NOT static assets
+after_deploy:
+  - |
+    aws cloudfront create-invalidation \
+      --distribution-id $CLOUDFRONT_ID \
+      --paths "/" "/page/*" "/ssg_page/*" "/isr_page/*" "/ssr_page/*"
+    # Do NOT include "/_next/static/*"
+```
+
+**Requires:** Persistent storage for static files (S3, persistent volumes, or merged deployments)
+
+**Key insight:** Static chunks use immutable caching. Once cached with hash `abc123.js`, browsers expect it to exist forever. When using ephemeral pod storage, clear all CDN cache after deployment to prevent 404 errors.
 
 ## Memory Profiling
 
