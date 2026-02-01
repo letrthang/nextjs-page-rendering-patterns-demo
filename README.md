@@ -240,6 +240,81 @@ after_deploy:
 
 **Key insight:** Static chunks use immutable caching. Once cached with hash `abc123.js`, browsers expect it to exist forever. When using ephemeral pod storage, clear all CDN cache after deployment to prevent 404 errors.
 
+---
+
+**🎯💡Hybrid Rendering - SSG with Client Components: 🎯**
+
+SSG pages can embed client components (`'use client'`) for dynamic interactivity while maintaining pre-rendered HTML. This demonstrates that **"pure SSG" can still have dynamic, interactive content**.
+
+**Example from this project:**
+
+```typescript
+// src/app/ssg_page/[id]/page.tsx (Server Component - SSG)
+import TitleDialog from './TitleDialog'; // ← Client Component
+
+export default async function SSGPageDetail({ params }) {
+  const data = await getSSGPageData(id); // Pre-rendered at build time
+  const randomNumber = generateRandomNumber(); // Generated at build time
+
+  return (
+    <div>
+      <h1>{data.page.title}</h1>
+      <TitleDialog title={data.page.title} randomNumber={randomNumber} />
+      {/* ↑ Client component - interactive, NOT pre-rendered */}
+    </div>
+  );
+}
+```
+
+```typescript
+// src/app/ssg_page/[id]/TitleDialog.tsx (Client Component)
+'use client';
+import { useState } from 'react';
+
+export default function TitleDialog({ title, randomNumber }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [currentTimestamp, setCurrentTimestamp] = useState('');
+
+  const handleOpen = () => {
+    setCurrentTimestamp(new Date().toISOString()); // ← Dynamic, runs in browser
+    setIsOpen(true);
+  };
+
+  return <button onClick={handleOpen}>Show Title Dialog</button>;
+  // Dialog displays:
+  // - title: from SSG (build time) -> never change
+  // - randomNumber: from SSG (build time) -> never change
+  // - timestamp: from browser (runtime) -> this keeps changing every click
+}
+```
+
+![Alt text](./doc/SSG_with_CSR.png)
+
+**What gets pre-rendered vs. what's dynamic:**
+
+| Component | Pre-rendered? | When it runs |
+|-----------|---------------|--------------|
+| SSG page HTML | ✅ Yes | Build time (baked in Docker image) |
+| `title` from CMS | ✅ Yes | Build time (fetched from Directus) |
+| `randomNumber` | ✅ Yes | Build time (generated once) |
+| `TitleDialog` component | ❌ No | Browser (hydrates after page loads) |
+| `timestamp` | ❌ No | Browser (generated on button click) |
+| Button interactions | ❌ No | Browser (event handlers run client-side) |
+
+**Key takeaway:**
+- ✅ **SSG page structure**: Pre-rendered, static HTML with CMS data
+- ✅ **Client components within**: Hydrate in browser, add interactivity
+- ✅ **Props from SSG to client**: Static data passed from build time to runtime
+- ✅ **Client state**: Dynamic data generated in browser (timestamps, user input, etc.)
+
+**This hybrid approach allows SSG to have:**
+- Fast initial load (pre-rendered HTML)
+- SEO benefits (content in HTML)
+- Rich interactivity (client components)
+- Dynamic features (without sacrificing static benefits)
+
+---
+
 ### ISR (Incremental Static Regeneration)
 
 **Source:** `src/app/isr_page/[id]/page.tsx`
