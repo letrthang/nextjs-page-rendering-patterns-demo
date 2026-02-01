@@ -60,7 +60,48 @@ You could see the home page as below:
 
 ### Rendering Patterns Matrix
 
+Next.js rendering patterns are determined by two key configuration options:
+
+**`generateStaticParams`** - Defines which dynamic routes to pre-render at build time
+- ✅ Present → Pages pre-rendered and stored in Docker image
+- ❌ Absent → Pages generated on-demand at request time
+
+**`revalidate`** - Controls when/how pages regenerate
+- `false` or absent → Never regenerate (pure static)
+- `number` (e.g., 1800) → ISR with time-based revalidation
+- `0` or `cache: 'no-store'` → SSR (render on every request)
+
+**Client components** (`'use client'`) bypass server rendering and fetch data in the browser.
+
+The matrix below shows how these options combine to create different rendering patterns:
+
 ![Alt text](./doc/rendering_patterns_matrix.png)
+
+**Understanding Next.js build output symbols:**
+
+When you run `pnpm build`, Next.js displays route information with these symbols:
+
+- **○** (Hollow circle) = Static - Prerendered as static content (SSG without `generateStaticParams`)
+- **●** (Filled circle) = SSG/ISR - Prerendered as static HTML using `generateStaticParams`
+- **ƒ** (Lambda) = Dynamic - Server-rendered on demand (SSR/CSR)
+
+**Important distinction:**
+
+```
+Route (app)
+├ ● /ssg_page/[id]      ← Pre-rendered at build time, NEVER regenerates
+├ ● /isr_page/[id]      ← Pre-rendered at build time, regenerates every xx seconds (xx = revalidate time)
+└ ƒ /ssr_page/[id]      ← NOT pre-rendered, renders on each request
+```
+
+**Both SSG and ISR use the ● symbol** because both pre-render pages at build time with `generateStaticParams`. The key difference:
+- **SSG**: Pre-rendered once, never changes until next build
+- **ISR**: Pre-rendered at build, then regenerates periodically based on `revalidate` time
+
+⚠️ **Common misconception**: "Only SSG pre-renders at build time"
+- **Reality**: Both SSG and ISR pre-render at build time. ISR adds automatic regeneration on top of that.
+
+---
 
 ### SSG - Static Site Generation
 
@@ -198,6 +239,349 @@ after_deploy:
 **Requires:** Persistent storage for static files (S3, persistent volumes, or merged deployments)
 
 **Key insight:** Static chunks use immutable caching. Once cached with hash `abc123.js`, browsers expect it to exist forever. When using ephemeral pod storage, clear all CDN cache after deployment to prevent 404 errors.
+
+### ISR (Incremental Static Regeneration)
+
+**Source:** `src/app/isr_page/[id]/page.tsx`
+
+**Method:** Combines static generation with time-based revalidation for fresh content without full rebuilds
+
+**Configuration:**
+```typescript
+export const revalidate = 1800; // Revalidate every 30 minutes
+
+export async function generateStaticParams() {
+  // Pre-render pages at build time
+  const response = await fetch(`${process.env.DIRECTUS_URL}/items/pages`, {
+    headers: { 'Authorization': `Bearer ${process.env.DIRECTUS_TOKEN}` },
+  });
+  const data = await response.json();
+  return data.data.map((page: Page) => ({ id: page.id.toString() }));
+}
+```
+
+**Pre-rendered pages are stored at:**
+- `.next/server/app/isr_page/` (standard build - used by `pnpm start`)
+- `.next/standalone/.next/server/app/isr_page/` (standalone build - used by `node .next/standalone/server.js`)
+
+**Generated files per page:**
+- `{id}.html` - Pre-rendered HTML content (regenerates every 30 min)
+- `{id}.rsc` - React Server Component payload
+- `{id}.meta` - Metadata with revalidation timestamp
+- `{id}.segments/` - Code splitting segments
+
+**Data fetching:** Direct call to Directus API (server-side only)
+
+**How ISR works:**
+1. **Build time (if using `generateStaticParams`):** Pages pre-rendered and stored in Docker image
+2. **Runtime:** Pages served from cache
+3. **After revalidation period (30 min):** Next request triggers background regeneration with fresh CMS data
+4. **Stale-while-revalidate:** Users get instant response with cached page while new version generates
+
+**Configuration with `generateStaticParams`:**
+```typescript
+// src/app/isr_page/[id]/page.tsx
+export const revalidate = 1800; // Revalidate every 30 minutes
+
+export async function generateStaticParams() {
+  // Pre-render pages at build time
+  const response = await fetch(`${process.env.DIRECTUS_URL}/items/pages`, {
+    headers: { 'Authorization': `Bearer ${process.env.DIRECTUS_TOKEN}` },
+  });
+  const data = await response.json();
+  return data.data.map((page: Page) => ({ id: page.id.toString() }));
+}
+```
+
+**Important for ephemeral pods (Docker/Kubernetes):**
+
+When using `generateStaticParams`, pages are pre-rendered at build time and baked into the Docker image. After pod deployment, these pages will serve stale content until the revalidation period expires (30 minutes in this case).
+
+**Solution: Invalidate cache on pod startup**
+
+To ensure fresh content immediately after deployment, trigger on-demand revalidation when the pod starts:
+
+**Step 1: Create revalidation API route**
+```typescript
+// src/app/api/revalidate/route.ts
+import { revalidatePath, revalidateTag } from 'next/cache';
+import { NextRequest, NextResponse } from 'next/server';
+
+export async function POST(request: NextRequest) {
+  const secret = request.nextUrl.searchParams.get('secret');
+
+  if (secret !== process.env.REVALIDATE_SECRET) {
+    return NextResponse.json({ message: 'Invalid secret' }, { status: 401 });
+  }
+
+  try {
+    // Revalidate all ISR pages
+    revalidatePath('/isr_page/[id]', 'page');
+    return NextResponse.json({
+      revalidated: true,
+      message: 'All ISR pages revalidated'
+    });
+  } catch (err) {
+    return NextResponse.json({
+      message: 'Error revalidating'
+    }, { status: 500 });
+  }
+}
+```
+
+**Step 2: Trigger revalidation after pod startup**
+
+Option A - In GitLab CI/CD:
+```bash
+# .gitlab-ci.yml
+after_deploy:
+  - |
+    # Wait for pod to be ready
+    kubectl wait --for=condition=ready pod -l app=nextjs --timeout=120s
+
+    # Trigger revalidation
+    POD_NAME=$(kubectl get pods -l app=nextjs -o jsonpath='{.items[0].metadata.name}')
+    kubectl exec $POD_NAME -- curl -X POST \
+      "http://localhost:3000/api/revalidate?secret=${REVALIDATE_SECRET}"
+```
+
+Option B - Kubernetes PostStart Hook:
+```yaml
+# deployment.yaml
+spec:
+  containers:
+  - name: nextjs
+    lifecycle:
+      postStart:
+        exec:
+          command:
+          - /bin/sh
+          - -c
+          - |
+            sleep 5
+            curl -X POST "http://localhost:3000/api/revalidate?secret=${REVALIDATE_SECRET}"
+```
+
+**Benefits of this approach:**
+- ✅ Keep pre-rendered pages for faster initial pod startup
+- ✅ Automatic cache invalidation triggers fresh content from CMS
+- ✅ First user request after revalidation gets fresh content
+- ✅ Maintains ISR caching benefits (30 min cache)
+
+**CDN caching strategy:**
+
+Configure in `next.config.ts`:
+```typescript
+export default {
+  expireTime: 2400, // 40 minutes total (30 min fresh + 10 min stale)
+};
+```
+
+Generates: `Cache-Control: s-maxage=1800, stale-while-revalidate=600`
+- CDN caches for 30 minutes
+- Can serve stale for additional 10 minutes while revalidating
+- Total cache window: 40 minutes
+
+**When to use ISR:**
+- ✅ Content updates regularly but not on every request (e.g., news, blog posts, product catalog)
+- ✅ Want static performance with fresh content
+- ✅ Can tolerate brief stale content (revalidation period)
+- ✅ Need to update content without rebuilding entire site
+
+### SSR (Server-Side Rendering)
+
+**Source:** `src/app/ssr_page/[id]/page.tsx`
+
+**Method:** Pages rendered on-demand for each request on the server
+
+**Configuration:**
+```typescript
+// src/app/ssr_page/[id]/page.tsx
+// No special exports needed - SSR is the default for server components
+
+async function getSSRPageData(id: string) {
+  try {
+    // SSR runs on server, fetch directly from Directus
+    const [pageResponse, blocksResponse] = await Promise.all([
+      fetch(`${process.env.DIRECTUS_URL}/items/pages/${id}`, {
+        headers: { 'Authorization': `Bearer ${process.env.DIRECTUS_TOKEN}` },
+        cache: 'no-store', // Always fetch fresh data
+      }),
+      // ...
+    ]);
+    // ...
+  }
+}
+```
+
+**Key characteristics:**
+- No pre-rendering at build time
+- No static files generated
+- Each request executes server-side code
+- Always fetches fresh data from CMS
+
+**Data fetching:** Direct call to Directus API with `cache: 'no-store'` (server-side only)
+
+**How SSR works:**
+1. **User request:** Browser requests page
+2. **Server execution:** Next.js server fetches data from Directus
+3. **HTML generation:** Server renders React components to HTML
+4. **Response:** Sends complete HTML to browser
+5. **Hydration:** Browser loads JavaScript and makes page interactive
+
+**Storage:** No pre-rendered pages stored. All rendering happens at request time in the pod.
+
+**CDN caching strategy:**
+
+SSR pages can still benefit from CDN caching:
+
+```typescript
+// next.config.ts
+async headers() {
+  return [
+    {
+      source: '/ssr_page/:path*',
+      headers: [
+        {
+          key: 'Cache-Control',
+          value: 's-maxage=60, stale-while-revalidate=30',
+        },
+      ],
+    },
+  ];
+}
+```
+
+This caches SSR responses at the CDN for 60 seconds, reducing server load.
+
+**When to use SSR:**
+- ✅ Need fresh data on every request (real-time data, user-specific content)
+- ✅ Data changes frequently and cannot be stale
+- ✅ Personalized content based on request headers/cookies
+- ✅ SEO important but content too dynamic for ISR
+
+**Trade-offs:**
+- ❌ Slower response time (no pre-rendered cache)
+- ❌ Higher server load (renders on every request)
+- ✅ Always up-to-date content
+- ✅ No stale content issues
+
+---
+
+### CSR (Client-Side Rendering)
+
+**Source:** `src/app/csr_page/[id]/page.tsx`
+
+**Method:** Page shell rendered on server, data fetched in browser using React hooks
+
+**Configuration:**
+```typescript
+'use client'; // Mark as client component
+
+import { useState, useEffect } from 'react';
+
+export default function PageDetail() {
+  const [page, setPage] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchPageData();
+  }, []);
+
+  const fetchPageData = async () => {
+    // Fetch from API proxy (browser cannot access server env vars)
+    const response = await fetch('/api/proxy/items/pages/${id}');
+    const data = await response.json();
+    setPage(data.data);
+  };
+
+  if (loading) return <div>Loading...</div>;
+  return <div>{page.title}</div>;
+}
+```
+
+**Key characteristics:**
+- Runs in the browser
+- Initial HTML contains loading state
+- Data fetched after page loads
+- Uses API proxy to hide credentials
+
+**Data fetching:** Browser calls `/api/proxy/items/pages` which proxies to Directus
+- ❌ Cannot use `process.env.DIRECTUS_TOKEN` directly (not available in browser)
+- ✅ Must use API proxy route to add authentication headers
+
+**API Proxy implementation:**
+```typescript
+// src/app/api/proxy/[...path]/route.ts
+export async function GET(request: NextRequest, { params }) {
+  const { path } = await params;
+  const targetUrl = `${process.env.DIRECTUS_URL}/${path.join('/')}`;
+
+  const response = await fetch(targetUrl, {
+    headers: {
+      'Authorization': `Bearer ${process.env.DIRECTUS_TOKEN}`, // Added server-side
+    },
+  });
+
+  return new NextResponse(await response.text(), {
+    status: response.status,
+  });
+}
+```
+
+**How CSR works:**
+1. **Initial request:** Server sends minimal HTML with loading state
+2. **JavaScript loads:** Browser downloads and executes React code
+3. **Data fetch:** Browser calls `/api/proxy/items/pages/${id}`
+4. **API proxy:** Next.js server forwards request to Directus with auth token
+5. **Render:** Browser updates DOM with fetched data
+
+**Storage:** No pre-rendered pages. Only the app shell is sent to browser.
+
+**Caching strategy:**
+
+```typescript
+// Browser-side caching with React Query or SWR (optional)
+import useSWR from 'swr';
+
+function PageDetail() {
+  const { data, error } = useSWR(`/api/proxy/items/pages/${id}`, fetcher, {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+  });
+}
+```
+
+Or rely on browser HTTP cache:
+```typescript
+// API proxy can set cache headers
+responseHeaders.set('Cache-Control', 'public, max-age=300'); // 5 min
+```
+
+**When to use CSR:**
+- ✅ Interactive features requiring browser APIs (localStorage, geolocation, etc.)
+- ✅ Real-time updates (WebSocket, polling)
+- ✅ User interactions that don't need SEO (dashboards, admin panels)
+- ✅ Content behind authentication
+
+**Trade-offs:**
+- ❌ Poor SEO (content not in initial HTML)
+- ❌ Slower perceived load time (loading state visible)
+- ❌ Requires JavaScript to function
+- ✅ Rich interactivity
+- ✅ Reduced server load (data fetching offloaded to client)
+- ✅ Better for highly interactive UIs
+
+**Comparison with other patterns:**
+
+| Aspect | SSR | CSR |
+|--------|-----|-----|
+| **SEO** | ✅ Excellent | ❌ Poor |
+| **Initial load** | ✅ Fast (full HTML) | ⚠️ Shows loading |
+| **Time to interactive** | Fast | Fast |
+| **Server load** | High | Low |
+| **Fresh data** | Always | On fetch |
+| **Credentials** | Direct API | Via proxy |
 
 ---
 
@@ -382,13 +766,21 @@ export default nextConfig;
 // src/app/isr_page/[id]/page.tsx
 export const revalidate = 1800; // 30 minutes
 
-// Remove generateStaticParams to ensure fresh content on pod startup
+export async function generateStaticParams() {
+  // Pre-render pages at build time
+  const response = await fetch(`${process.env.DIRECTUS_URL}/items/pages`, {
+    headers: { 'Authorization': `Bearer ${process.env.DIRECTUS_TOKEN}` },
+  });
+  const data = await response.json();
+  return data.data.map((page: Page) => ({ id: page.id.toString() }));
+}
 ```
 
 **Result:**
 - ISR pages: `Cache-Control: s-maxage=1800, stale-while-revalidate=600`
 - Static chunks: `Cache-Control: public, max-age=31536000, immutable`
-- Fresh content on every deployment (no baked stale pages)
+- Pages pre-rendered at build time and baked into Docker image
+- After deployment, clear web app cache to force fresh content from CMS
 
 ## Memory Profiling
 
