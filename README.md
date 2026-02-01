@@ -199,6 +199,197 @@ after_deploy:
 
 **Key insight:** Static chunks use immutable caching. Once cached with hash `abc123.js`, browsers expect it to exist forever. When using ephemeral pod storage, clear all CDN cache after deployment to prevent 404 errors.
 
+---
+
+## CDN Cache Control: Setting s-maxage and stale-while-revalidate
+
+Next.js provides two methods to configure Cache-Control headers for CDN caching with `s-maxage` and `stale-while-revalidate` directives.
+
+### Understanding Cache-Control Directives
+
+**`s-maxage`**: How long CDN caches content (in seconds) before considering it stale
+**`stale-while-revalidate`**: How long CDN can serve stale content while fetching fresh content in background
+
+**Example:**
+```
+Cache-Control: s-maxage=1800, stale-while-revalidate=600
+```
+- CDN caches for 30 minutes (fresh)
+- After 30 min, can serve stale for additional 10 minutes while revalidating
+- Total cache window: 40 minutes
+
+---
+
+### Method 1: Using `expireTime` (Recommended for ISR pages)
+
+**When to use:** For ISR pages where you want automatic calculation based on `revalidate` time
+
+**Configuration:**
+
+```typescript
+// next.config.ts
+import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
+  output: 'standalone',
+  expireTime: 2400, // Total cache time in seconds (40 minutes)
+};
+
+export default nextConfig;
+```
+
+```typescript
+// src/app/isr_page/[id]/page.tsx
+export const revalidate = 1800; // 30 minutes
+```
+
+**How it works:**
+
+Next.js automatically calculates `stale-while-revalidate`:
+```
+stale-while-revalidate = expireTime - revalidate
+                       = 2400 - 1800
+                       = 600 seconds (10 minutes)
+```
+
+**Generated Cache-Control header:**
+```
+Cache-Control: s-maxage=1800, stale-while-revalidate=600
+```
+
+**Benefits:**
+- ✅ Simple, one-line configuration
+- ✅ Automatic calculation for all ISR pages
+- ✅ Consistent across all routes with `revalidate`
+- ✅ No manual header configuration needed
+
+---
+
+### Method 2: Using `headers()` function (For fine-grained control)
+
+**When to use:** When you need different cache strategies for different routes or page types
+
+**Configuration:**
+
+```typescript
+// next.config.ts
+import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
+  output: 'standalone',
+
+  async headers() {
+    return [
+      {
+        // ISR pages: 30 min cache + 10 min stale
+        source: '/isr_page/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 's-maxage=1800, stale-while-revalidate=600',
+          },
+        ],
+      },
+      {
+        // SSG pages: 1 hour cache + 30 min stale
+        source: '/ssg_page/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 's-maxage=3600, stale-while-revalidate=1800',
+          },
+        ],
+      },
+      {
+        // Static assets: 1 year, immutable
+        source: '/_next/static/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+      {
+        // Default for other pages
+        source: '/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 's-maxage=1800, stale-while-revalidate=600',
+          },
+        ],
+      },
+    ];
+  },
+};
+
+export default nextConfig;
+```
+
+**Benefits:**
+- ✅ Fine-grained control per route
+- ✅ Different strategies for different page types
+- ✅ Can set custom headers beyond Cache-Control
+- ✅ More flexible but requires manual configuration
+
+---
+
+### Method Comparison
+
+| Aspect | `expireTime` | `headers()` |
+|--------|-------------|-------------|
+| **Configuration** | One line | Multiple route patterns |
+| **Flexibility** | Same for all ISR pages | Different per route |
+| **Calculation** | Automatic | Manual |
+| **Best for** | Simple ISR setup | Complex caching strategies |
+| **Maintenance** | Easier | More verbose |
+
+---
+
+### Recommended Configuration for This Project
+
+**For ISR pages with consistent caching:**
+
+```typescript
+// next.config.ts
+import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
+  output: 'standalone',
+  expireTime: 2400, // 40 minutes total (30 min fresh + 10 min stale)
+
+  // Optional: Add custom headers for static assets
+  async headers() {
+    return [
+      {
+        source: '/_next/static/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+    ];
+  },
+};
+
+export default nextConfig;
+```
+
+```typescript
+// src/app/isr_page/[id]/page.tsx
+export const revalidate = 1800; // 30 minutes
+
+// Remove generateStaticParams to ensure fresh content on pod startup
+```
+
+**Result:**
+- ISR pages: `Cache-Control: s-maxage=1800, stale-while-revalidate=600`
+- Static chunks: `Cache-Control: public, max-age=31536000, immutable`
+- Fresh content on every deployment (no baked stale pages)
+
 ## Memory Profiling
 
 ### **Step 1: Start app**
