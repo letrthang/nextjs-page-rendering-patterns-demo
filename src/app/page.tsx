@@ -25,7 +25,7 @@ export default function Home() {
             setLoading(true);
 
             // All page types use the same data source
-            const response = await fetch('/api/pages');
+            const response = await fetch('/api/proxy/items/pages');
 
             if (!response.ok) {
                 throw new Error('Failed to fetch pages');

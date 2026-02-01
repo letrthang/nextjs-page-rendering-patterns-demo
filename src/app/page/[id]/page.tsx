@@ -45,13 +45,13 @@ export default function PageDetail() {
             setLoading(true);
 
             // Fetch page details
-            const pageResponse = await fetch(`/api/pages/${id}`);
+            const pageResponse = await fetch(`/api/proxy/items/pages/${id}`);
             if (!pageResponse.ok) throw new Error('Failed to fetch page');
             const pageData = await pageResponse.json();
             setPage(pageData);
 
             // Fetch sections for this page
-            const sectionsResponse = await fetch(`/api/sections?page_id=${id}`);
+            const sectionsResponse = await fetch(`/api/proxy/items/page_blocks?filter[page][_eq]=${id}`);
             if (!sectionsResponse.ok) throw new Error('Failed to fetch sections');
             const sectionsData = await sectionsResponse.json();
             console.log('Sections data:', sectionsData);

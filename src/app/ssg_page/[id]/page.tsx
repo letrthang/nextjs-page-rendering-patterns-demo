@@ -21,11 +21,7 @@ interface SSGSection {
 // Static Site Generation - runs at build time
 export async function generateStaticParams() {
     try {
-        const response = await fetch(`${process.env.DIRECTUS_URL}/items/pages`, {
-            headers: {
-                'Authorization': `Bearer ${process.env.DIRECTUS_TOKEN}`,
-            },
-        });
+        const response = await fetch('/api/proxy/items/pages');
         const data = await response.json();
 
         if (!data.data) return [];
@@ -47,12 +43,8 @@ function generateRandomNumber(): string {
 async function getSSGPageData(id: string) {
     try {
         const [pageResponse, blocksResponse] = await Promise.all([
-            fetch(`${process.env.DIRECTUS_URL}/items/pages/${id}`, {
-                headers: { 'Authorization': `Bearer ${process.env.DIRECTUS_TOKEN}` },
-            }),
-            fetch(`${process.env.DIRECTUS_URL}/items/page_blocks?filter[page][_eq]=${id}`, {
-                headers: { 'Authorization': `Bearer ${process.env.DIRECTUS_TOKEN}` },
-            }),
+            fetch(`/api/proxy/items/pages/${id}`),
+            fetch(`/api/proxy/items/page_blocks?filter[page][_eq]=${id}`),
         ]);
 
         if (!pageResponse.ok) return null;

@@ -31,12 +31,10 @@ interface SSRSection {
 async function getSSRPageData(id: string) {
     try {
         const [pageResponse, blocksResponse] = await Promise.all([
-            fetch(`${process.env.DIRECTUS_URL}/items/pages/${id}`, {
-                headers: { 'Authorization': `Bearer ${process.env.DIRECTUS_TOKEN}` },
+            fetch(`/api/proxy/items/pages/${id}`, {
                 cache: 'no-store', // Always fresh data
             }),
-            fetch(`${process.env.DIRECTUS_URL}/items/page_blocks?filter[page][_eq]=${id}`, {
-                headers: { 'Authorization': `Bearer ${process.env.DIRECTUS_TOKEN}` },
+            fetch(`/api/proxy/items/page_blocks?filter[page][_eq]=${id}`, {
                 cache: 'no-store',
             }),
         ]);
