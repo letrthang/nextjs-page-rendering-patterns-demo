@@ -15,9 +15,10 @@ Beyond rendering, this project includes a detailed guide on **Memory Profiling**
 
 To demo rendering patterns, we need to build and run on production mode.
 
-### 1. Setup Web app ENV variable
+### 1. Setup Web app ENV variable and update DB file for directus
 
-Update file **.env** with the token you created on Directus CMS.
+- Update file **.env** with the token you created on Directus CMS.
+- Using this DB file: [Directus DB docker](https://github.com/letrthang/nextjs-page-rendering-patterns-demo/blob/main/database/data.db) for your Directus docker. See docker-compose.yml to know how it is mapping.
 
 ### 2. Install packages
 
