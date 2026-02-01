@@ -24,13 +24,27 @@ interface PageBlock {
 // Generated at build time, revalidated every 60 seconds
 export const revalidate = 60;
 
+// Optional: Set custom cache headers for the page response
+// Next.js will automatically add: Cache-Control: s-maxage=60, stale-while-revalidate
+// You can customize further if needed:
+// export const dynamic = 'force-static';
+// export const dynamicParams = true;
+
 async function getISRPageData(id: string) {
     try {
+        // ISR always runs on server, so we can call Directus directly
+        // (both at build time and during revalidation)
         const [pageResponse, blocksResponse] = await Promise.all([
-            fetch(`/api/proxy/items/pages/${id}`, {
+            fetch(`${process.env.DIRECTUS_URL}/items/pages/${id}`, {
+                headers: {
+                    'Authorization': `Bearer ${process.env.DIRECTUS_TOKEN}`,
+                },
                 next: { revalidate: 60 } // Revalidate every 60 seconds
             }),
-            fetch(`/api/proxy/items/page_blocks?filter[page][_eq]=${id}`, {
+            fetch(`${process.env.DIRECTUS_URL}/items/page_blocks?filter[page][_eq]=${id}`, {
+                headers: {
+                    'Authorization': `Bearer ${process.env.DIRECTUS_TOKEN}`,
+                },
                 next: { revalidate: 60 }
             }),
         ]);
@@ -54,7 +68,11 @@ async function getISRPageData(id: string) {
 
 export async function generateStaticParams() {
     try {
-        const response = await fetch('/api/proxy/items/pages');
+        const response = await fetch(`${process.env.DIRECTUS_URL}/items/pages`, {
+            headers: {
+                'Authorization': `Bearer ${process.env.DIRECTUS_TOKEN}`,
+            },
+        });
         const data = await response.json();
 
         return data.data.map((page: Page) => ({

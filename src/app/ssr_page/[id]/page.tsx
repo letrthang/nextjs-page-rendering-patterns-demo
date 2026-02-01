@@ -30,11 +30,18 @@ interface SSRSection {
 // Server-Side Rendering - runs on each request
 async function getSSRPageData(id: string) {
     try {
+        // SSR runs on server, so we can call Directus directly
         const [pageResponse, blocksResponse] = await Promise.all([
-            fetch(`/api/proxy/items/pages/${id}`, {
+            fetch(`${process.env.DIRECTUS_URL}/items/pages/${id}`, {
+                headers: {
+                    'Authorization': `Bearer ${process.env.DIRECTUS_TOKEN}`,
+                },
                 cache: 'no-store', // Always fresh data
             }),
-            fetch(`/api/proxy/items/page_blocks?filter[page][_eq]=${id}`, {
+            fetch(`${process.env.DIRECTUS_URL}/items/page_blocks?filter[page][_eq]=${id}`, {
+                headers: {
+                    'Authorization': `Bearer ${process.env.DIRECTUS_TOKEN}`,
+                },
                 cache: 'no-store',
             }),
         ]);

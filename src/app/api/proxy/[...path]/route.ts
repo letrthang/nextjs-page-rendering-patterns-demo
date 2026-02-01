@@ -27,11 +27,18 @@ async function handleProxy(request: NextRequest, path: string[]) {
     const response = await fetch(targetUrl, init);
     const responseBody = await response.text();
 
+    const responseHeaders = new Headers({
+        'Content-Type': response.headers.get('content-type') || 'application/json',
+    });
+
+    // Set Cache-Control based on path
+    if (path[0] === 'items' && path[1] === 'pages') {
+        responseHeaders.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=120');
+    }
+
     return new NextResponse(responseBody, {
         status: response.status,
-        headers: {
-            'Content-Type': response.headers.get('content-type') || 'application/json',
-        },
+        headers: responseHeaders,
     });
 }
 

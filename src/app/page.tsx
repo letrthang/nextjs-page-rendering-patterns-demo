@@ -32,7 +32,7 @@ export default function Home() {
             }
 
             const pagesData = await response.json();
-            setPages(pagesData);
+            setPages(pagesData.data);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'An error occurred');
         } finally {
@@ -54,7 +54,7 @@ export default function Home() {
                     {pages.map((page) => (
                         <div key={page.id} className="page-card csr-card">
                             <h3>
-                                <Link href={`/page/${page.id}`}>
+                                <Link href={`/csr_page/${page.id}`}>
                                     {page.title}
                                 </Link>
                             </h3>
