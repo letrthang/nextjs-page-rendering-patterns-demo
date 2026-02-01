@@ -308,10 +308,16 @@ export default function TitleDialog({ title, randomNumber }) {
 - ✅ **Client state**: Dynamic data generated in browser (timestamps, user input, etc.)
 
 **This hybrid approach allows SSG to have:**
-- Fast initial load (pre-rendered HTML)
-- SEO benefits (content in HTML)
-- Rich interactivity (client components)
-- Dynamic features (without sacrificing static benefits)
+* Fast initial load (pre-rendered HTML)
+* SEO benefits (content in HTML)
+* Rich interactivity (client components)
+* Dynamic features (without sacrificing static benefits)
+* Do note that **TitleDialog** is a client component, not a CSR page. **TitleDialog** is a client component that:
+  1. Has NO separate route/URL 
+  2. Is imported and used within the SSG page 
+  3. Receives props from the server component (title, randomNumber)
+  4. Hydrates in the browser after the SSG page loads 
+  5. Adds interactivity to an otherwise static page
 
 ---
 
