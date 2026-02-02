@@ -497,6 +497,147 @@ This is essentially **stale-while-revalidate behavior at the Next.js server leve
 - ✅ Can tolerate brief stale content (revalidation period)
 - ✅ Need to update content without rebuilding entire site
 
+---
+
+### On-Demand ISR Cache Revalidation
+
+This project includes an API endpoint for **on-demand cache invalidation**, allowing you to refresh ISR pages immediately without waiting for the revalidation period to expire.
+
+**API Endpoint:** `src/app/api/revalidate/route.ts`
+
+**Setup:**
+1. Add `REVALIDATE_SECRET` to your `.env` file:
+   ```bash
+   REVALIDATE_SECRET=your-secret-token-here
+   ```
+
+2. Tag your ISR page fetches with cache tags:
+   ```typescript
+   // src/app/isr_page/[id]/page.tsx
+   fetch(url, {
+     next: {
+       revalidate: 600,
+       tags: ['isr-pages', `isr-page-${id}`] // ← Cache tags
+     }
+   })
+   ```
+
+**Manual Cache Invalidation (curl commands):**
+
+```bash
+# Option 1: Invalidate ALL ISR pages (using cache tag - recommended)
+curl -X POST "http://localhost:3000/api/revalidate?secret=1234567890"
+
+# Option 2: Invalidate all ISR pages by explicit tag
+curl -X POST "http://localhost:3000/api/revalidate?secret=1234567890" \
+  -H "Content-Type: application/json" \
+  -d '{"tag": "isr-pages"}'
+
+# Option 3: Invalidate specific ISR page (e.g., page ID 1)
+curl -X POST "http://localhost:3000/api/revalidate?secret=1234567890" \
+  -H "Content-Type: application/json" \
+  -d '{"tag": "isr-page-1"}'
+
+# Option 4: Invalidate specific path
+curl -X POST "http://localhost:3000/api/revalidate?secret=1234567890" \
+  -H "Content-Type: application/json" \
+  -d '{"path": "/isr_page/1"}'
+
+# Option 5: Invalidate all ISR pages without using tags (path-based)
+curl -X POST "http://localhost:3000/api/revalidate?secret=1234567890" \
+  -H "Content-Type: application/json" \
+  -d '{"revalidateAll": true}'
+```
+
+**For Windows PowerShell:**
+```powershell
+# Invalidate all ISR pages
+Invoke-RestMethod -Uri "http://localhost:3000/api/revalidate?secret=1234567890" -Method POST
+
+# With specific tag
+Invoke-RestMethod -Uri "http://localhost:3000/api/revalidate?secret=1234567890" `
+  -Method POST `
+  -ContentType "application/json" `
+  -Body '{"tag": "isr-pages"}'
+```
+
+**Multi-Pod Kubernetes Deployment:**
+
+When running multiple pods, you need to invalidate cache across **all pods**:
+
+**Strategy 1: Direct pod invocation (Most reliable)**
+```bash
+# Get all pod names and call each pod directly
+PODS=$(kubectl get pods -l app=nextjs -o jsonpath='{.items[*].metadata.name}')
+
+for pod in $PODS; do
+  kubectl exec $pod -- curl -X POST \
+    "http://localhost:3000/api/revalidate?secret=${REVALIDATE_SECRET}" &
+done
+wait
+```
+
+**Strategy 2: Service-level broadcast**
+```bash
+# Call service endpoint multiple times (num of pods * 2 for safety)
+for i in {1..6}; do
+  curl -X POST "http://nextjs-service:3000/api/revalidate?secret=${REVALIDATE_SECRET}" &
+done
+wait
+```
+
+**Strategy 3: Automatic invalidation on pod startup (Kubernetes PostStart Hook)**
+```yaml
+# deployment.yaml
+spec:
+  containers:
+  - name: nextjs
+    lifecycle:
+      postStart:
+        exec:
+          command:
+          - /bin/sh
+          - -c
+          - |
+            sleep 10
+            curl -X POST "http://localhost:3000/api/revalidate?secret=${REVALIDATE_SECRET}"
+    env:
+    - name: REVALIDATE_SECRET
+      valueFrom:
+        secretKeyRef:
+          name: nextjs-secrets
+          key: revalidate-secret
+```
+
+**Understanding Cache Tags:**
+
+Cache tags allow you to group related cached data and invalidate them together:
+
+```typescript
+// Tag by content type
+tags: ['isr-pages']                    // All ISR pages
+
+// Tag by specific resource
+tags: ['isr-pages', `isr-page-${id}`]  // Specific page
+
+// Tag by data type
+tags: ['isr-pages', 'page-blocks']     // Pages and their blocks
+```
+
+**Benefits:**
+- ✅ Invalidate multiple related pages with one API call
+- ✅ Don't need to know all page paths
+- ✅ More maintainable than managing path lists
+- ✅ Granular control (invalidate all pages or just one)
+
+**Use Cases:**
+- CMS webhook triggers cache invalidation after content update
+- Manual refresh during deployments
+- Scheduled cache refresh via cron job
+- Integration with CI/CD pipelines
+
+---
+
 ### SSR (Server-Side Rendering)
 
 **Source:** `src/app/ssr_page/[id]/page.tsx`

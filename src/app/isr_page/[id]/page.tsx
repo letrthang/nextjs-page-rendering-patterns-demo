@@ -39,13 +39,19 @@ async function getISRPageData(id: string) {
                 headers: {
                     'Authorization': `Bearer ${process.env.DIRECTUS_TOKEN}`,
                 },
-                next: { revalidate: 60 } // Revalidate every 60 seconds
+                next: {
+                    revalidate: 600, // Revalidate every 60 seconds
+                    tags: ['isr-pages', `isr-page-${id}`] // ← Add cache tags
+                }
             }),
             fetch(`${process.env.DIRECTUS_URL}/items/page_blocks?filter[page][_eq]=${id}`, {
                 headers: {
                     'Authorization': `Bearer ${process.env.DIRECTUS_TOKEN}`,
                 },
-                next: { revalidate: 60 }
+                next: {
+                    revalidate: 600,
+                    tags: ['isr-pages', 'page-blocks', `page-blocks-${id}`] // ← Add cache tags
+                }
             }),
         ]);
 
