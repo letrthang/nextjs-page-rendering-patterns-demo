@@ -463,6 +463,34 @@ Generates: `Cache-Control: s-maxage=1800, stale-while-revalidate=600`
 - Can serve stale for additional 10 minutes while revalidating
 - Total cache window: 40 minutes
 
+**Next.js ISR Built-in Stale-While-Revalidate Behavior:**
+
+Next.js ISR has a built-in stale-while-revalidate mechanism at the **server level** (separate from CDN headers):
+
+```typescript
+// src/app/isr_page/[id]/page.tsx
+export const revalidate = 1800; // 30 minutes
+```
+
+**How it works:**
+1. **Before revalidation period (0-30 min)**: Serve cached static page from `.next/server/app/isr_page/`
+2. **After revalidation period expires**:
+   - **First request**: Serve stale cached page immediately + trigger regeneration in background 🔄
+   - **Subsequent requests**: Serve fresh page after regeneration completes ✅
+
+This is essentially **stale-while-revalidate behavior at the Next.js server level** - visitors get instant responses with cached pages while fresh content generates in the background.
+
+**Key difference from CDN `stale-while-revalidate` header:**
+
+| Aspect | CDN Header (`stale-while-revalidate=600`) | ISR (`revalidate = 1800`) |
+|--------|------------------------------------------|---------------------------|
+| **Level** | HTTP header (CDN/browser cache) | Server-side (Next.js cache) |
+| **Controls** | CDN cache behavior | Static page regeneration |
+| **Location** | `next.config.ts` headers() | Page component |
+| **Purpose** | CDN serves stale while fetching from origin | Next.js serves stale while regenerating static page |
+
+**Official documentation:** https://nextjs.org/docs/app/building-your-application/data-fetching/incremental-static-regeneration
+
 **When to use ISR:**
 - ✅ Content updates regularly but not on every request (e.g., news, blog posts, product catalog)
 - ✅ Want static performance with fresh content
