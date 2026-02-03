@@ -1,6 +1,6 @@
 # On-demand Cache Invalidation System
 
-## JIRA Ticket Summary
+## Overview
 
 **Title:** Implement On-Demand Cache Invalidation System for Directus CMS Publishing Events
 
