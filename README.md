@@ -150,7 +150,7 @@ Route (app)
 
 **Problem:**
 ```
-Deployment 1: .next/static/chunks/abc123.js (user's browser cached this)
+Deployment 1: .next/static/chunks/abc123.js (old html file which was cached on CDN pointing to this file)
 Deployment 2: .next/static/chunks/xyz789.js (new build DELETES abc123.js)
 Result: User gets 404 error trying to load abc123.js ❌
 ```
