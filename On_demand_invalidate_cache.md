@@ -31,7 +31,8 @@ graph TB
     end
 
     subgraph K8S["Kubernetes Cluster"]
-        EH["Event Handler Service/CronJob<br/>• Receives Optical CMS webhook events<br/>• Validates payload<br/>• Determines affected routes/pages<br/>• Calls cache invalidation API on all pods<br/>• Calls CloudFront to invalidate CDN"]
+        EH["Event Handler Service/CronJob<br/>• Receives webhook events<br/>• Validates payload<br/>• Maps content to routes<br/>• Calls cache invalidation API on all pods<br/>• Calls CloudFront to invalidate CDN"]
+        GW["GitLab Webhook<br/>• Manual trigger via UI button<br/>• Validate inputs<br/>• Calls Event Handler Service"]
 
         subgraph WebApp["Next.js Web App Pods"]
             POD1["Pod 1<br/>/api/revalidate<br/>(Invalidates ISR cache)"]
@@ -44,6 +45,7 @@ graph TB
 
     SP -->|Publish Event| EH
     IP -->|Publish Event| EH
+    GW -->|Manual Trigger| EH
     EH -->|"POST /api/revalidate<br/>(with auth token)"| POD1
     EH -->|"POST /api/revalidate<br/>(with auth token)"| POD2
     EH -->|"POST /api/revalidate<br/>(with auth token)"| POD3
@@ -90,3 +92,19 @@ graph TB
   - Validate incoming requests (secret token)
   - Use Next.js ISR `revalidatePath()` or `revalidateTag()`
   - Return detailed invalidation results
+
+### 4. GitLab Webhook
+- **Responsibility:** Provide manual cache invalidation trigger via UI button
+- **Implementation:** GitLab webhook that receives manual trigger requests
+- **Tasks:**
+  - Validate incoming webhook requests (authentication)
+  - Provide UI button for manual cache invalidation
+  - Call Event Handler Service to orchestrate invalidation
+- **Configuration:** 
+  - GitLab project webhook endpoint
+  - Authentication via secret token
+  - UI integration in GitLab interface
+- **Benefits:**
+  - Manual cache refresh capability
+  - User-friendly interface
+  - Integration with existing Event Handler workflow
